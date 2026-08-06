@@ -226,7 +226,8 @@ Environment:
 
 Safety:
   Validation and planning are read-only. Android stage apply and channel promotion
-  require machine-readable approval bound to the exact plan SHA-256. HPS does not
-  build, sign, install, partition, rebuild, or recover systems.
+  require machine-readable approval bound to the exact plan SHA-256.
+  Disk partitioning, installation, rebuild, recovery, APK installation, and Android
+  signing are not implemented.
 `)
 }
