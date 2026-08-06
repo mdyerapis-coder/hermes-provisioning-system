@@ -163,7 +163,7 @@ type ChannelPlanSpec struct {
 	VersionCode     string `json:"versionCode"`
 	VersionName     string `json:"versionName"`
 	APK             string `json:"apk"`
-	APK_SHA256      string `json:"apkSha256"`
+	APKSHA256       string `json:"apkSha256"`
 	SignerSHA256    string `json:"signerSha256"`
 }
 
@@ -189,7 +189,7 @@ type ChannelSpec struct {
 	VersionCode         string `json:"versionCode"`
 	VersionName         string `json:"versionName"`
 	APK                 string `json:"apk"`
-	APK_SHA256          string `json:"apkSha256"`
+	APKSHA256           string `json:"apkSha256"`
 	SignerSHA256        string `json:"signerSha256"`
 	PromotionPlanSHA256 string `json:"promotionPlanSha256"`
 	ApprovalSHA256      string `json:"approvalSha256"`
