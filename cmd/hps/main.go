@@ -1,10 +1,21 @@
 package main
 
-import "fmt"
+import (
+	"os"
 
-var version = "0.1.0-dev"
+	"github.com/mdyerapis-coder/hermes-provisioning-system/internal/cli"
+)
+
+var (
+	version = "0.1.0-dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
 
 func main() {
-	fmt.Println("Hermes Provisioning System")
-	fmt.Println("Version:", version)
+	os.Exit(cli.Run(os.Args[1:], cli.BuildInfo{
+		Version: version,
+		Commit:  commit,
+		Date:    date,
+	}, os.Stdout, os.Stderr))
 }
