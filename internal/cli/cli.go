@@ -50,6 +50,8 @@ func Run(args []string, build BuildInfo, stdout, stderr io.Writer) int {
 		return runManifest(args[1:], stdout, stderr)
 	case "asset":
 		return runAsset(args[1:], stdout, stderr)
+	case "android":
+		return runAndroid(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n\n", args[0])
 		printHelp(stderr)
@@ -212,15 +214,19 @@ Commands:
   serve      Serve provisioning assets over HTTP
   manifest   Validate versioned provisioning manifests
   asset      Verify immutable local assets
+  android    Validate Android APK identity and signing metadata
   help       Show this help
 
 Environment:
   HPS_REPOSITORY  Repository root (default: /srv/hermes)
   HPS_SERVER      Provisioning endpoint checked by validate and doctor
   HPS_LISTEN      Embedded server address (default: 127.0.0.1:8080)
+  HPS_AAPT2       Optional aapt2 executable path
+  HPS_APKSIGNER   Optional apksigner executable path
 
 Safety:
   The current commands are read-only except serve, which only opens an HTTP listener.
-  Disk partitioning, installation, rebuild, and recovery actions are not implemented yet.
+  Disk partitioning, installation, rebuild, recovery, APK staging, and APK installation
+  are not implemented yet.
 `)
 }
