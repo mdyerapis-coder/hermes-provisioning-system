@@ -46,3 +46,26 @@ jobs:
           ./bin/hps asset verify \
             --file "$repo/asset.bin" \
             --sha256 d53ba9ce30ffd743f4f905a61ddcf2c4fe0e5c72a2cc57638657fdd4171d1f6f
+
+          tools="$(mktemp -d)"
+          cat > "$tools/aapt2" <<'EOF'
+          #!/bin/sh
+          printf "%s\n" "package: name='com.hermesandroid.app.debug' versionCode='1' versionName='0.1.0-phase1'"
+          EOF
+          cat > "$tools/apksigner" <<'EOF'
+          #!/bin/sh
+          printf "%s\n" "Signer #1 certificate SHA-256 digest: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          EOF
+          chmod 0700 "$tools/aapt2" "$tools/apksigner"
+
+          printf 'fixture APK\n' > "$repo/app-debug.apk"
+          apk_digest="$(sha256sum "$repo/app-debug.apk" | awk '{print $1}')"
+          ./bin/hps android validate \
+            --apk "$repo/app-debug.apk" \
+            --sha256 "$apk_digest" \
+            --package com.hermesandroid.app.debug \
+            --version-code 1 \
+            --version-name 0.1.0-phase1 \
+            --signer-sha256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            --aapt2 "$tools/aapt2" \
+            --apksigner "$tools/apksigner"
