@@ -46,6 +46,10 @@ func Run(args []string, build BuildInfo, stdout, stderr io.Writer) int {
 		return runDoctor(args[1:], build, stdout, stderr)
 	case "serve":
 		return runServe(args[1:], build, stdout, stderr)
+	case "manifest":
+		return runManifest(args[1:], stdout, stderr)
+	case "asset":
+		return runAsset(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n\n", args[0])
 		printHelp(stderr)
@@ -206,6 +210,8 @@ Commands:
   validate   Validate repository structure and an optional HTTP endpoint
   doctor     Run host and provisioning readiness checks
   serve      Serve provisioning assets over HTTP
+  manifest   Validate versioned provisioning manifests
+  asset      Verify immutable local assets
   help       Show this help
 
 Environment:
