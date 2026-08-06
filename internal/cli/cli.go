@@ -214,7 +214,7 @@ Commands:
   serve      Serve provisioning assets over HTTP
   manifest   Validate versioned provisioning manifests
   asset      Verify immutable local assets
-  android    Validate Android APK identity and signing metadata
+  android    Validate, stage, and promote approved Android APK releases
   help       Show this help
 
 Environment:
@@ -225,8 +225,8 @@ Environment:
   HPS_APKSIGNER   Optional apksigner executable path
 
 Safety:
-  The current commands are read-only except serve, which only opens an HTTP listener.
-  Disk partitioning, installation, rebuild, recovery, APK staging, and APK installation
-  are not implemented yet.
+  Validation and planning are read-only. Android stage apply and channel promotion
+  require machine-readable approval bound to the exact plan SHA-256. HPS does not
+  build, sign, install, partition, rebuild, or recover systems.
 `)
 }
