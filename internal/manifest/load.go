@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,7 +29,7 @@ func LoadFile(path string) (Manifest, error) {
 	}
 
 	var result Manifest
-	decoder := json.NewDecoder(newSliceReader(payload))
+	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&result); err != nil {
 		return Manifest{}, fmt.Errorf("decode manifest: %w", err)
@@ -50,23 +51,4 @@ func ensureEOF(decoder *json.Decoder) error {
 		return fmt.Errorf("decode trailing content: %w", err)
 	}
 	return errors.New("manifest contains multiple JSON values")
-}
-
-// sliceReader avoids retaining an os.File in tests while keeping decoding strict.
-type sliceReader struct {
-	data []byte
-	off  int
-}
-
-func newSliceReader(data []byte) *sliceReader {
-	return &sliceReader{data: data}
-}
-
-func (r *sliceReader) Read(p []byte) (int, error) {
-	if r.off >= len(r.data) {
-		return 0, io.EOF
-	}
-	n := copy(p, r.data[r.off:])
-	r.off += n
-	return n, nil
 }
