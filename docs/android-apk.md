@@ -1,6 +1,6 @@
 # Android APK validation and distribution
 
-HPS treats Android packages as externally built and signed release artefacts. The Android application repository owns source compilation and signing. HPS verifies and, in later milestones, distributes the resulting immutable files.
+HPS treats Android packages as externally built and signed release artefacts. The Android application repository owns source compilation and signing. HPS verifies the resulting immutable files and can stage or promote them only through separately approved plans.
 
 ## Trust boundary
 
@@ -14,7 +14,7 @@ HPS must never receive or store an Android signing private key. A release record
 
 The expected values must come from an independent CI/release record, not from the APK being validated. Reading a fingerprint from an APK and immediately trusting that same value does not establish identity.
 
-## Current command
+## APK validation
 
 ```bash
 hps android validate \
@@ -46,37 +46,29 @@ The supplied Hermes Android project currently defines:
 | Release | `com.hermesandroid.app` | `1` | `0.1.0-phase1` |
 | Debug | `com.hermesandroid.app.debug` | `1` | `0.1.0-phase1` |
 
-Debug signing keys are commonly local-development identities and must not be promoted to a stable release channel. Stable distribution requires a separately controlled release-signing identity whose certificate fingerprint is pinned in release metadata.
+Debug signing keys are local-development identities and must not be promoted to a stable release channel. Stable distribution requires a separately controlled release-signing identity whose certificate fingerprint is pinned in release metadata.
 
-## Planned runtime layout
+## Approval-gated distribution
 
-APK staging is not implemented yet. The intended repository layout is:
+The distribution workflow is documented in [`android-distribution.md`](android-distribution.md). It provides:
 
-```text
-/srv/hermes/android/
-├── debug/
-│   └── current.json
-├── beta/
-│   └── current.json
-├── stable/
-│   └── current.json
-└── releases/
-    └── com.hermesandroid.app/
-        └── VERSION_CODE/
-            ├── app.apk
-            ├── release.json
-            └── SHA256SUMS
-```
+- strict `AndroidStageManifest` inputs;
+- read-only stage and channel plans;
+- `HPSApproval` records bound to exact plan SHA-256 values;
+- immutable `/srv/hermes/android/<channel>/<version>/` directories;
+- generated `release.json` and `SHA256SUMS`;
+- atomic `current.json` channel promotion;
+- stable-channel rejection of `.debug` application IDs.
 
-Historical release directories will be immutable. Channel promotion will update only an approved pointer manifest after validation and explicit human approval.
+Code availability does not authorize a live staging or promotion action. Those remain separate human approval gates.
 
 ## Safety boundary
 
-The current implementation does not:
+HPS does not:
 
 - build or sign an APK;
-- copy an APK into `/srv/hermes`;
-- create or promote a release channel;
+- possess an Android signing private key;
 - install an APK on an Android device;
 - publish to Google Play;
-- contact an Android device over ADB.
+- contact an Android device over ADB;
+- silently stage or promote a release without exact-plan approval.

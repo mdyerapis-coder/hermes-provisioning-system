@@ -1,0 +1,24 @@
+{
+  "apiVersion": "hps.hermes/v1",
+  "kind": "AndroidStageManifest",
+  "metadata": {
+    "name": "hermes-android-debug",
+    "version": "0.1.0-phase1"
+  },
+  "spec": {
+    "channel": "debug",
+    "apk": "/absolute/path/to/app-debug.apk",
+    "fileName": "hermes-android-debug.apk",
+    "package": "com.hermesandroid.app.debug",
+    "versionCode": "1",
+    "versionName": "0.1.0-phase1",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "signerSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "provenance": {
+      "sourceRepository": "https://example.invalid/hermes-android",
+      "commit": "REPLACE_WITH_SOURCE_COMMIT",
+      "buildId": "REPLACE_WITH_CI_BUILD_ID",
+      "builder": "REPLACE_WITH_BUILDER_IDENTITY"
+    }
+  }
+}

@@ -33,6 +33,8 @@ jobs:
 
       - name: Smoke test CLI
         run: |
+          set -eu
+
           ./bin/hps version
 
           repo="$(mktemp -d)"
@@ -60,12 +62,118 @@ jobs:
 
           printf 'fixture APK\n' > "$repo/app-debug.apk"
           apk_digest="$(sha256sum "$repo/app-debug.apk" | awk '{print $1}')"
+          signer_digest="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
           ./bin/hps android validate \
             --apk "$repo/app-debug.apk" \
             --sha256 "$apk_digest" \
             --package com.hermesandroid.app.debug \
             --version-code 1 \
             --version-name 0.1.0-phase1 \
-            --signer-sha256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            --signer-sha256 "$signer_digest" \
             --aapt2 "$tools/aapt2" \
             --apksigner "$tools/apksigner"
+
+          plans="$(mktemp -d)"
+          cat > "$plans/stage-manifest.json" <<EOF
+          {
+            "apiVersion": "hps.hermes/v1",
+            "kind": "AndroidStageManifest",
+            "metadata": {
+              "name": "hermes-android-debug",
+              "version": "0.1.0-phase1"
+            },
+            "spec": {
+              "channel": "debug",
+              "apk": "$repo/app-debug.apk",
+              "fileName": "hermes-android-debug.apk",
+              "package": "com.hermesandroid.app.debug",
+              "versionCode": "1",
+              "versionName": "0.1.0-phase1",
+              "sha256": "$apk_digest",
+              "signerSha256": "$signer_digest",
+              "provenance": {
+                "sourceRepository": "https://example.invalid/hermes-android",
+                "commit": "ci-fixture",
+                "buildId": "github-actions"
+              }
+            }
+          }
+          EOF
+
+          stage_plan="$plans/stage-plan.json"
+          ./bin/hps android stage plan \
+            --manifest "$plans/stage-manifest.json" \
+            --repo "$repo" \
+            --out "$stage_plan" \
+            --aapt2 "$tools/aapt2" \
+            --apksigner "$tools/apksigner"
+
+          stage_digest="$(sha256sum "$stage_plan" | awk '{print $1}')"
+          approved_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          cat > "$plans/stage-approval.json" <<EOF
+          {
+            "apiVersion": "hps.hermes/v1",
+            "kind": "HPSApproval",
+            "action": "android-stage",
+            "planSha256": "$stage_digest",
+            "approved": true,
+            "approvedBy": "github-actions",
+            "approvedAt": "$approved_at"
+          }
+          EOF
+
+          ./bin/hps android stage apply \
+            --plan "$stage_plan" \
+            --approval "$plans/stage-approval.json" \
+            --repo "$repo" \
+            --aapt2 "$tools/aapt2" \
+            --apksigner "$tools/apksigner"
+
+          test -f "$repo/android/debug/0.1.0-phase1/hermes-android-debug.apk"
+          test -f "$repo/android/debug/0.1.0-phase1/release.json"
+          test -f "$repo/android/debug/0.1.0-phase1/SHA256SUMS"
+
+          if ./bin/hps android stage apply \
+            --plan "$stage_plan" \
+            --approval "$plans/stage-approval.json" \
+            --repo "$repo" \
+            --aapt2 "$tools/aapt2" \
+            --apksigner "$tools/apksigner"; then
+            echo "immutable release was unexpectedly replaced" >&2
+            exit 1
+          fi
+
+          channel_plan="$plans/channel-plan.json"
+          ./bin/hps android channel plan \
+            --repo "$repo" \
+            --channel debug \
+            --version 0.1.0-phase1 \
+            --out "$channel_plan"
+
+          channel_digest="$(sha256sum "$channel_plan" | awk '{print $1}')"
+          approved_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          cat > "$plans/channel-approval.json" <<EOF
+          {
+            "apiVersion": "hps.hermes/v1",
+            "kind": "HPSApproval",
+            "action": "android-channel-promote",
+            "planSha256": "$channel_digest",
+            "approved": true,
+            "approvedBy": "github-actions",
+            "approvedAt": "$approved_at"
+          }
+          EOF
+
+          ./bin/hps android channel promote \
+            --repo "$repo" \
+            --plan "$channel_plan" \
+            --approval "$plans/channel-approval.json"
+
+          ./bin/hps android channel show \
+            --repo "$repo" \
+            --channel debug \
+            > "$plans/current.json"
+
+          grep -q '"version": "0.1.0-phase1"' "$plans/current.json"
+          grep -q '"apkSha256":' "$plans/current.json"

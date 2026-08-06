@@ -23,6 +23,10 @@ func runAndroid(args []string, stdout, stderr io.Writer) int {
 		return 0
 	case "validate":
 		return runAndroidValidate(args[1:], stdout, stderr)
+	case "stage":
+		return runAndroidStage(args[1:], stdout, stderr)
+	case "channel":
+		return runAndroidChannel(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown android command %q\n\n", args[0])
 		printAndroidHelp(stderr)
@@ -96,9 +100,13 @@ func printAndroidHelp(w io.Writer) {
     --version-code CODE \
     --version-name NAME \
     --signer-sha256 CERT_DIGEST
+  hps android stage plan|apply [options]
+  hps android channel plan|promote|show [options]
 
 Commands:
   validate   Verify APK checksum, manifest identity, and signing certificate
+  stage      Plan or apply immutable APK staging
+  channel    Plan, promote, or inspect debug/beta/stable pointers
 
 Tools:
   Android SDK Build Tools must provide aapt2 and apksigner. HPS discovers them
@@ -106,6 +114,8 @@ Tools:
   with --aapt2 and --apksigner, or HPS_AAPT2 and HPS_APKSIGNER.
 
 Safety:
-  APK validation is read-only. It does not stage, install, publish, or sign APKs.
+  Validation and planning are read-only. Stage apply and channel promote require
+  machine-readable approval bound to the SHA-256 of the exact plan file. HPS
+  never builds, signs, or installs an APK and never handles a signing private key.
 `)
 }

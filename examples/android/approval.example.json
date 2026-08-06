@@ -1,0 +1,10 @@
+{
+  "apiVersion": "hps.hermes/v1",
+  "kind": "HPSApproval",
+  "action": "android-stage",
+  "planSha256": "REPLACE_WITH_EXACT_PLAN_SHA256",
+  "approved": false,
+  "approvedBy": "REPLACE_AFTER_HUMAN_REVIEW",
+  "approvedAt": "2026-08-06T00:00:00Z",
+  "expiresAt": "2026-08-07T00:00:00Z"
+}
