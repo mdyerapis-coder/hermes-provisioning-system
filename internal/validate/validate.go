@@ -88,18 +88,43 @@ func Endpoint(ctx context.Context, rawURL string) Check {
 	requestCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(requestCtx, http.MethodHead, rawURL, nil)
+	status, err := endpointRequest(requestCtx, http.MethodHead, rawURL, false)
 	if err != nil {
 		return Check{Name: "server-endpoint", OK: false, Detail: err.Error()}
+	}
+	if status >= 200 && status < 400 {
+		return Check{Name: "server-endpoint", OK: true, Detail: fmt.Sprintf("HTTP %d (HEAD)", status)}
+	}
+
+	// Some directory indexes and hardened reverse proxies reject HEAD while a
+	// bounded GET succeeds. Retry only those method-related responses and ask
+	// for one byte so validation does not download an installer asset.
+	if status == http.StatusForbidden || status == http.StatusMethodNotAllowed || status == http.StatusNotImplemented {
+		getStatus, getErr := endpointRequest(requestCtx, http.MethodGet, rawURL, true)
+		if getErr != nil {
+			return Check{Name: "server-endpoint", OK: false, Detail: fmt.Sprintf("HEAD HTTP %d; GET failed: %v", status, getErr)}
+		}
+		if getStatus >= 200 && getStatus < 400 {
+			return Check{Name: "server-endpoint", OK: true, Detail: fmt.Sprintf("HTTP %d (GET fallback after HEAD %d)", getStatus, status)}
+		}
+		return Check{Name: "server-endpoint", OK: false, Detail: fmt.Sprintf("HEAD HTTP %d; GET HTTP %d", status, getStatus)}
+	}
+
+	return Check{Name: "server-endpoint", OK: false, Detail: fmt.Sprintf("HTTP %d (HEAD)", status)}
+}
+
+func endpointRequest(ctx context.Context, method, rawURL string, bounded bool) (int, error) {
+	req, err := http.NewRequestWithContext(ctx, method, rawURL, nil)
+	if err != nil {
+		return 0, err
+	}
+	if bounded {
+		req.Header.Set("Range", "bytes=0-0")
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Check{Name: "server-endpoint", OK: false, Detail: err.Error()}
+		return 0, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-		return Check{Name: "server-endpoint", OK: false, Detail: fmt.Sprintf("HTTP %d", resp.StatusCode)}
-	}
-	return Check{Name: "server-endpoint", OK: true, Detail: fmt.Sprintf("HTTP %d", resp.StatusCode)}
+	return resp.StatusCode, nil
 }
