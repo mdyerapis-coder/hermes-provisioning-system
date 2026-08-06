@@ -34,17 +34,8 @@ func validateStageManifest(manifest StageManifest) error {
 	if err := validateAPKFileName(manifest.Spec.FileName); err != nil {
 		return err
 	}
-	if !packageNamePattern.MatchString(manifest.Spec.Package) {
-		return fmt.Errorf("invalid Android package name %q", manifest.Spec.Package)
-	}
-	if manifest.Spec.Channel == "stable" && strings.HasSuffix(manifest.Spec.Package, ".debug") {
-		return errors.New("stable channel cannot contain a debug application ID")
-	}
-	if _, err := positiveVersionCode(manifest.Spec.VersionCode); err != nil {
+	if err := validatePackageAndVersion(manifest.Spec.Channel, manifest.Spec.Package, manifest.Spec.VersionCode, manifest.Spec.VersionName, manifest.Metadata.Version); err != nil {
 		return err
-	}
-	if manifest.Spec.VersionName == "" || strings.ContainsAny(manifest.Spec.VersionName, "\r\n") {
-		return errors.New("spec.versionName must be non-empty and single-line")
 	}
 	if !validDigest(manifest.Spec.SHA256) {
 		return errors.New("spec.sha256 must contain exactly 64 hexadecimal characters")
@@ -100,17 +91,11 @@ func validateStagePlan(plan StagePlan) error {
 		plan.Spec.Checksums != filepath.ToSlash(filepath.Join(expectedDir, "SHA256SUMS")) {
 		return errors.New("stage plan destination paths are inconsistent")
 	}
-	if !packageNamePattern.MatchString(plan.Spec.Package) || !validDigest(plan.Spec.SHA256) || !validDigest(plan.Spec.SignerSHA256) || plan.Spec.Size <= 0 {
-		return errors.New("stage plan contains invalid APK identity metadata")
-	}
-	if _, err := positiveVersionCode(plan.Spec.VersionCode); err != nil {
+	if err := validatePackageAndVersion(plan.Spec.Channel, plan.Spec.Package, plan.Spec.VersionCode, plan.Spec.VersionName, plan.Spec.Version); err != nil {
 		return err
 	}
-	if plan.Spec.Version != plan.Spec.VersionName {
-		return errors.New("stage plan version must match versionName")
-	}
-	if plan.Spec.Channel == "stable" && strings.HasSuffix(plan.Spec.Package, ".debug") {
-		return errors.New("stable channel cannot contain a debug application ID")
+	if !validDigest(plan.Spec.SHA256) || !validDigest(plan.Spec.SignerSHA256) || plan.Spec.Size <= 0 {
+		return errors.New("stage plan contains invalid APK digest or size metadata")
 	}
 	if strings.TrimSpace(plan.Spec.Provenance.SourceRepository) == "" || strings.TrimSpace(plan.Spec.Provenance.Commit) == "" {
 		return errors.New("stage plan provenance is incomplete")
@@ -122,7 +107,7 @@ func validateRelease(release Release, channel, version string) error {
 	if release.APIVersion != APIVersion || release.Kind != KindRelease {
 		return errors.New("invalid Android release manifest identity")
 	}
-	if release.Metadata.Version != version || release.Spec.VersionName != version || release.Spec.Channel != channel {
+	if release.Metadata.Version != version || release.Spec.Channel != channel {
 		return errors.New("release manifest does not match the selected channel and version")
 	}
 	if release.Metadata.Name != release.Spec.Package {
@@ -134,14 +119,17 @@ func validateRelease(release Release, channel, version string) error {
 	if err := validateAPKFileName(release.Spec.File); err != nil {
 		return err
 	}
-	if !packageNamePattern.MatchString(release.Spec.Package) || !validDigest(release.Spec.SHA256) || !validDigest(release.Spec.SignerSHA256) || release.Spec.Size <= 0 {
-		return errors.New("release manifest contains invalid APK identity metadata")
+	if err := validatePackageAndVersion(channel, release.Spec.Package, release.Spec.VersionCode, release.Spec.VersionName, version); err != nil {
+		return err
+	}
+	if !validDigest(release.Spec.SHA256) || !validDigest(release.Spec.SignerSHA256) || release.Spec.Size <= 0 {
+		return errors.New("release manifest contains invalid APK digest or size metadata")
 	}
 	if !validDigest(release.Spec.StagePlanSHA256) || !validDigest(release.Spec.ApprovalSHA256) {
 		return errors.New("release manifest contains invalid approval provenance digests")
 	}
-	if channel == "stable" && strings.HasSuffix(release.Spec.Package, ".debug") {
-		return errors.New("stable release cannot contain a debug application ID")
+	if strings.TrimSpace(release.Spec.Provenance.SourceRepository) == "" || strings.TrimSpace(release.Spec.Provenance.Commit) == "" {
+		return errors.New("release manifest provenance is incomplete")
 	}
 	return nil
 }
@@ -171,17 +159,20 @@ func validateChannelPlan(plan ChannelPlan) error {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 	}
+	if err := validateAPKFileName(filepath.Base(filepath.FromSlash(plan.Spec.APK))); err != nil {
+		return err
+	}
 	expectedReleaseDir := filepath.ToSlash(filepath.Join("android", plan.Spec.Channel, plan.Spec.Version))
 	if plan.Spec.ReleaseManifest != filepath.ToSlash(filepath.Join(expectedReleaseDir, "release.json")) ||
 		plan.Spec.ChannelManifest != filepath.ToSlash(filepath.Join("android", plan.Spec.Channel, "current.json")) ||
 		filepath.ToSlash(filepath.Dir(filepath.FromSlash(plan.Spec.APK))) != expectedReleaseDir {
 		return errors.New("channel plan paths are inconsistent")
 	}
-	if !validDigest(plan.Spec.ReleaseSHA256) || !validDigest(plan.Spec.APK_SHA256) || !validDigest(plan.Spec.SignerSHA256) {
-		return errors.New("channel plan contains invalid SHA-256 metadata")
+	if err := validatePackageAndVersion(plan.Spec.Channel, plan.Spec.Package, plan.Spec.VersionCode, plan.Spec.VersionName, plan.Spec.Version); err != nil {
+		return err
 	}
-	if plan.Spec.Channel == "stable" && strings.HasSuffix(plan.Spec.Package, ".debug") {
-		return errors.New("stable channel cannot point to a debug application ID")
+	if !validDigest(plan.Spec.ReleaseSHA256) || !validDigest(plan.Spec.APKSHA256) || !validDigest(plan.Spec.SignerSHA256) {
+		return errors.New("channel plan contains invalid SHA-256 metadata")
 	}
 	return nil
 }
@@ -205,16 +196,19 @@ func validateChannelDocument(channelDoc Channel, expectedChannel string) error {
 	if err := validateRelativePath(channelDoc.Spec.APK); err != nil {
 		return err
 	}
+	if err := validateAPKFileName(filepath.Base(filepath.FromSlash(channelDoc.Spec.APK))); err != nil {
+		return err
+	}
 	expectedReleaseDir := filepath.ToSlash(filepath.Join("android", expectedChannel, channelDoc.Spec.Version))
 	if channelDoc.Spec.ReleaseManifest != filepath.ToSlash(filepath.Join(expectedReleaseDir, "release.json")) ||
 		filepath.ToSlash(filepath.Dir(filepath.FromSlash(channelDoc.Spec.APK))) != expectedReleaseDir {
 		return errors.New("channel manifest paths are inconsistent")
 	}
-	if !validDigest(channelDoc.Spec.ReleaseSHA256) || !validDigest(channelDoc.Spec.APK_SHA256) || !validDigest(channelDoc.Spec.SignerSHA256) || !validDigest(channelDoc.Spec.PromotionPlanSHA256) || !validDigest(channelDoc.Spec.ApprovalSHA256) {
-		return errors.New("channel manifest contains invalid SHA-256 metadata")
+	if err := validatePackageAndVersion(expectedChannel, channelDoc.Spec.Package, channelDoc.Spec.VersionCode, channelDoc.Spec.VersionName, channelDoc.Spec.Version); err != nil {
+		return err
 	}
-	if expectedChannel == "stable" && strings.HasSuffix(channelDoc.Spec.Package, ".debug") {
-		return errors.New("stable channel cannot point to a debug application ID")
+	if !validDigest(channelDoc.Spec.ReleaseSHA256) || !validDigest(channelDoc.Spec.APKSHA256) || !validDigest(channelDoc.Spec.SignerSHA256) || !validDigest(channelDoc.Spec.PromotionPlanSHA256) || !validDigest(channelDoc.Spec.ApprovalSHA256) {
+		return errors.New("channel manifest contains invalid SHA-256 metadata")
 	}
 	return nil
 }
@@ -257,6 +251,25 @@ func validateApproval(approval Approval, expectedAction, planDigest string, now 
 func validateChannel(channel string) error {
 	if !channelPattern.MatchString(channel) {
 		return fmt.Errorf("channel must be one of debug, beta, or stable")
+	}
+	return nil
+}
+
+func validatePackageAndVersion(channel, packageName, versionCode, versionName, version string) error {
+	if !packageNamePattern.MatchString(packageName) {
+		return fmt.Errorf("invalid Android package name %q", packageName)
+	}
+	if channel == "stable" && strings.HasSuffix(packageName, ".debug") {
+		return errors.New("stable channel cannot contain a debug application ID")
+	}
+	if _, err := positiveVersionCode(versionCode); err != nil {
+		return err
+	}
+	if versionName == "" || strings.ContainsAny(versionName, "\r\n") {
+		return errors.New("versionName must be non-empty and single-line")
+	}
+	if versionName != version {
+		return errors.New("version must exactly match versionName")
 	}
 	return nil
 }
