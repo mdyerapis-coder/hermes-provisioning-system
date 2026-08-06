@@ -80,6 +80,10 @@ func ensureSafeDirectoryTree(root, relative string) (string, error) {
 			if err := os.Mkdir(current, 0o755); err != nil {
 				return "", fmt.Errorf("create repository directory %s: %w", current, err)
 			}
+			if err := os.Chmod(current, 0o755); err != nil {
+				_ = os.Remove(current)
+				return "", fmt.Errorf("set repository directory permissions %s: %w", current, err)
+			}
 			continue
 		}
 		if err != nil {
@@ -147,6 +151,9 @@ func writeExclusiveFile(path string, data []byte, mode os.FileMode) error {
 			_ = os.Remove(path)
 		}
 	}()
+	if err := file.Chmod(mode.Perm()); err != nil {
+		return fmt.Errorf("set permissions on %s: %w", path, err)
+	}
 	if _, err := file.Write(data); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
@@ -184,6 +191,9 @@ func copyRegularFile(source, destination string, mode os.FileMode) (int64, strin
 			_ = os.Remove(destination)
 		}
 	}()
+	if err := output.Chmod(mode.Perm()); err != nil {
+		return 0, "", fmt.Errorf("set staged APK permissions: %w", err)
+	}
 	hash := sha256.New()
 	written, err := io.Copy(io.MultiWriter(output, hash), bufio.NewReader(input))
 	if err != nil {
@@ -235,6 +245,9 @@ func validDigest(value string) bool {
 }
 
 func syncDirectory(path string) error {
+	if err := os.Chmod(path, 0o755); err != nil {
+		return fmt.Errorf("set directory permissions: %w", err)
+	}
 	directory, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("open directory for sync: %w", err)
