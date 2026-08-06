@@ -4,6 +4,7 @@ COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 PREFIX ?= /usr/local
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)
+GO_FILES := $(shell find . -type f -name '*.go' -not -path './vendor/*')
 
 .PHONY: all build run fmt fmt-check vet test test-race check install clean
 
@@ -17,10 +18,11 @@ run:
 	go run ./cmd/hps
 
 fmt:
-	gofmt -w .
+	gofmt -w $(GO_FILES)
 
 fmt-check:
-	@test -z "$$(gofmt -l .)" || { echo "Run 'make fmt' on:"; gofmt -l .; exit 1; }
+	@test -n "$(GO_FILES)" || { echo "No Go source files found"; exit 1; }
+	@test -z "$$(gofmt -l $(GO_FILES))" || { echo "Run 'make fmt' on:"; gofmt -l $(GO_FILES); exit 1; }
 
 vet:
 	go vet ./...
