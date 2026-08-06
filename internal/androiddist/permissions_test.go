@@ -39,6 +39,14 @@ func runPublishedModesRestrictiveUmaskTest(t *testing.T) {
 	apkDigest := hex.EncodeToString(digest[:])
 
 	tools := createFakeTools(t, root)
+	for _, path := range []string{
+		filepath.Join(root, "android"),
+		filepath.Join(root, "android", "debug"),
+	} {
+		if err := os.Mkdir(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
 	now := time.Date(2026, 8, 6, 10, 0, 0, 0, time.UTC)
 	manifest := StageManifest{
 		APIVersion: APIVersion,
