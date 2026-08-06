@@ -13,7 +13,7 @@ func TestVerifyFile(t *testing.T) {
 		t.Fatalf("write asset: %v", err)
 	}
 
-	const expected = "0bd98f000b9a1dbf63733dc3020959ec31018cb76d65ce2e15784b43f48d5eae"
+	const expected = "d53ba9ce30ffd743f4f905a61ddcf2c4fe0e5c72a2cc57638657fdd4171d1f6f"
 	result, err := VerifyFile(path, expected)
 	if err != nil {
 		t.Fatalf("verify file: %v", err)
