@@ -1,0 +1,8 @@
+bin/
+dist/
+coverage/
+*.log
+*.tmp
+*.bak
+.env
+.env.*
