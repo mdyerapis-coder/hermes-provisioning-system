@@ -88,7 +88,7 @@ func Endpoint(ctx context.Context, rawURL string) Check {
 	requestCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	status, err := endpointRequest(requestCtx, http.MethodHead, rawURL, false)
+	status, err := endpointRequest(requestCtx, http.MethodHead, rawURL)
 	if err != nil {
 		return Check{Name: "server-endpoint", OK: false, Detail: err.Error()}
 	}
@@ -97,10 +97,10 @@ func Endpoint(ctx context.Context, rawURL string) Check {
 	}
 
 	// Some directory indexes and hardened reverse proxies reject HEAD while a
-	// bounded GET succeeds. Retry only those method-related responses and ask
-	// for one byte so validation does not download an installer asset.
+	// normal GET succeeds. The response body is closed without being consumed,
+	// so validation does not download an installer asset.
 	if status == http.StatusForbidden || status == http.StatusMethodNotAllowed || status == http.StatusNotImplemented {
-		getStatus, getErr := endpointRequest(requestCtx, http.MethodGet, rawURL, true)
+		getStatus, getErr := endpointRequest(requestCtx, http.MethodGet, rawURL)
 		if getErr != nil {
 			return Check{Name: "server-endpoint", OK: false, Detail: fmt.Sprintf("HEAD HTTP %d; GET failed: %v", status, getErr)}
 		}
@@ -113,13 +113,10 @@ func Endpoint(ctx context.Context, rawURL string) Check {
 	return Check{Name: "server-endpoint", OK: false, Detail: fmt.Sprintf("HTTP %d (HEAD)", status)}
 }
 
-func endpointRequest(ctx context.Context, method, rawURL string, bounded bool) (int, error) {
+func endpointRequest(ctx context.Context, method, rawURL string) (int, error) {
 	req, err := http.NewRequestWithContext(ctx, method, rawURL, nil)
 	if err != nil {
 		return 0, err
-	}
-	if bounded {
-		req.Header.Set("Range", "bytes=0-0")
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
