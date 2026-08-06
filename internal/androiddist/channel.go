@@ -58,7 +58,7 @@ func PlanChannel(repository, channel, version string, now time.Time) (ChannelPla
 			VersionCode:     release.Spec.VersionCode,
 			VersionName:     release.Spec.VersionName,
 			APK:             apkRel,
-			APK_SHA256:      release.Spec.SHA256,
+			APKSHA256:       release.Spec.SHA256,
 			SignerSHA256:    release.Spec.SignerSHA256,
 		},
 	}, nil
@@ -107,7 +107,7 @@ func PromoteChannel(planPath, approvalPath, repository string, now time.Time) (C
 	if err != nil {
 		return Channel{}, fmt.Errorf("verify staged APK before promotion: %w", err)
 	}
-	if apkDigest != plan.Spec.APK_SHA256 {
+	if apkDigest != plan.Spec.APKSHA256 {
 		return Channel{}, errors.New("staged APK changed after channel planning")
 	}
 
@@ -126,7 +126,7 @@ func PromoteChannel(planPath, approvalPath, repository string, now time.Time) (C
 			VersionCode:         plan.Spec.VersionCode,
 			VersionName:         plan.Spec.VersionName,
 			APK:                 plan.Spec.APK,
-			APK_SHA256:          plan.Spec.APK_SHA256,
+			APKSHA256:           plan.Spec.APKSHA256,
 			SignerSHA256:        plan.Spec.SignerSHA256,
 			PromotionPlanSHA256: planDigest,
 			ApprovalSHA256:      approvalDigest,
@@ -171,7 +171,8 @@ func PromoteChannel(planPath, approvalPath, repository string, now time.Time) (C
 	return channelDoc, nil
 }
 
-// ShowChannel loads current.json and verifies the referenced release manifest.
+// ShowChannel loads current.json and verifies the referenced release manifest
+// and APK against the pointer's pinned digests.
 func ShowChannel(repository, channel string) (Channel, error) {
 	repository, err := canonicalDirectory(repository)
 	if err != nil {
@@ -189,12 +190,20 @@ func ShowChannel(repository, channel string) (Channel, error) {
 		return Channel{}, err
 	}
 	releasePath := filepath.Join(repository, filepath.FromSlash(current.Spec.ReleaseManifest))
-	digest, _, err := digestRegularFile(releasePath)
+	releaseDigest, _, err := digestRegularFile(releasePath)
 	if err != nil {
 		return Channel{}, fmt.Errorf("verify referenced release manifest: %w", err)
 	}
-	if digest != current.Spec.ReleaseSHA256 {
+	if releaseDigest != current.Spec.ReleaseSHA256 {
 		return Channel{}, errors.New("current channel pointer references a changed release manifest")
+	}
+	apkPath := filepath.Join(repository, filepath.FromSlash(current.Spec.APK))
+	apkDigest, _, err := digestRegularFile(apkPath)
+	if err != nil {
+		return Channel{}, fmt.Errorf("verify referenced APK: %w", err)
+	}
+	if apkDigest != current.Spec.APKSHA256 {
+		return Channel{}, errors.New("current channel pointer references a changed APK")
 	}
 	return current, nil
 }
