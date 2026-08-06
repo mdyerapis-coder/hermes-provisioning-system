@@ -127,8 +127,15 @@ func TestStageAndPromoteLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ShowChannel: %v", err)
 	}
-	if current.Spec.APK_SHA256 != apkDigest || current.Spec.SignerSHA256 != testSigner {
+	if current.Spec.APKSHA256 != apkDigest || current.Spec.SignerSHA256 != testSigner {
 		t.Fatalf("unexpected current channel: %+v", current)
+	}
+
+	if err := os.WriteFile(result.APKPath, []byte("tampered APK\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ShowChannel(root, "debug"); err == nil || !strings.Contains(err.Error(), "changed APK") {
+		t.Fatalf("expected changed APK rejection, got %v", err)
 	}
 }
 
@@ -151,7 +158,7 @@ func TestApprovalMustMatchExactPlan(t *testing.T) {
 			VersionCode:     "1",
 			VersionName:     "1.0.0",
 			APK:             "android/debug/1.0.0/app.apk",
-			APK_SHA256:      strings.Repeat("b", 64),
+			APKSHA256:       strings.Repeat("b", 64),
 			SignerSHA256:    strings.Repeat("c", 64),
 		},
 	}
