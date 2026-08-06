@@ -34,6 +34,15 @@ jobs:
       - name: Smoke test CLI
         run: |
           ./bin/hps version
+
           repo="$(mktemp -d)"
           mkdir -p "$repo"/{bootstrap,fedora,kickstarts,recovery,scripts}
           ./bin/hps validate --repo "$repo"
+
+          ./bin/hps manifest validate \
+            --file examples/manifests/fedora44-kde.json
+
+          printf 'hermes\n' > "$repo/asset.bin"
+          ./bin/hps asset verify \
+            --file "$repo/asset.bin" \
+            --sha256 d53ba9ce30ffd743f4f905a61ddcf2c4fe0e5c72a2cc57638657fdd4171d1f6f
