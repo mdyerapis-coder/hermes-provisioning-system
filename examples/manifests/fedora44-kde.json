@@ -1,0 +1,27 @@
+{
+  "apiVersion": "hps.hermes/v1",
+  "kind": "ProvisioningManifest",
+  "metadata": {
+    "name": "fedora44-kde",
+    "version": "0.2-example",
+    "description": "Schema example only. Replace the example source and digest with verified official values before staging assets."
+  },
+  "spec": {
+    "os": {
+      "distribution": "fedora",
+      "release": "44",
+      "architecture": "x86_64",
+      "variant": "kde"
+    },
+    "assets": [
+      {
+        "name": "installer-iso",
+        "type": "iso",
+        "source": "https://example.invalid/Fedora-KDE-Live-44-x86_64.iso",
+        "destination": "fedora/44/Fedora-KDE-Live-44-x86_64.iso",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "required": true
+      }
+    ]
+  }
+}
