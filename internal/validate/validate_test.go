@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -40,5 +41,33 @@ func TestEndpoint(t *testing.T) {
 	check := Endpoint(context.Background(), server.URL)
 	if !check.OK {
 		t.Fatalf("expected endpoint check to pass: %#v", check)
+	}
+}
+
+func TestEndpointFallsBackToBoundedGETWhenHEADIsForbidden(t *testing.T) {
+	var receivedRange string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodHead:
+			w.WriteHeader(http.StatusForbidden)
+		case http.MethodGet:
+			receivedRange = r.Header.Get("Range")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("repository listing"))
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	check := Endpoint(context.Background(), server.URL)
+	if !check.OK {
+		t.Fatalf("expected GET fallback to pass: %#v", check)
+	}
+	if receivedRange != "bytes=0-0" {
+		t.Fatalf("expected bounded GET range, got %q", receivedRange)
+	}
+	if !strings.Contains(check.Detail, "GET fallback") {
+		t.Fatalf("expected fallback detail, got %q", check.Detail)
 	}
 }
