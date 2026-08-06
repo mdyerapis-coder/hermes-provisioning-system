@@ -92,6 +92,9 @@ func ensureSafeDirectoryTree(root, relative string) (string, error) {
 		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 			return "", fmt.Errorf("repository path component is not a real directory: %s", current)
 		}
+		if err := os.Chmod(current, 0o755); err != nil {
+			return "", fmt.Errorf("set repository directory permissions %s: %w", current, err)
+		}
 	}
 	return current, nil
 }
