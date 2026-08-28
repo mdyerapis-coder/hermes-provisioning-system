@@ -149,6 +149,10 @@ sudo make install
 - Secrets must never be committed to this public repository.
 - Merges, releases, deployments, infrastructure changes, staging, promotion, and repairs remain human-approved.
 
+## System map
+
+See `map/CLAUDE.md` for a walkable graph of this repository (nouns, verbs, change-impact index) for editing agents.
+
 ## Licence
 
 Apache-2.0. See [`LICENSE`](LICENSE).
